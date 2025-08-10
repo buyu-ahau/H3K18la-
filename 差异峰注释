@@ -1,0 +1,78 @@
+
+# 1. 加载所需的包
+library(ChIPseeker)
+library(TxDb.Drerio.UCSC.danRer11.refGene)
+library(org.Dr.eg.db)
+
+cat("所有包已成功加载。\n")
+
+# 2. 读取您的差异peak文件
+peak_file <- "all_differential_peaks.csv"
+peak_data <- read.csv(peak_file)
+peak <- makeGRangesFromDataFrame(peak_data,
+                                 keep.extra.columns=TRUE,
+                                 seqnames.field="chr",
+                                 start.field="start",
+                                 end.field="end")
+
+cat("成功读取并转换了", length(peak), "个差异peak。\n")
+cat("Peak文件中的染色体名示例: ", head(seqlevels(peak), 5), "\n")
+txdb <- TxDb.Drerio.UCSC.danRer11.refGene # 定义斑马鱼注释数据库
+cat("注释库中的染色体名示例: ", head(seqlevels(txdb), 5), "\n")
+
+# 为peak的染色体名称统一加上"chr"前缀
+cat("正在修改peak的染色体名以匹配注释库...\n")
+seqlevels(peak) <- paste0("chr", seqlevels(peak))
+
+# 再次检查修改后的名称（可选）
+cat("修改后的Peak染色体名示例: ", head(seqlevels(peak), 5), "\n")
+# 3. 对Peak进行注释
+txdb <- TxDb.Drerio.UCSC.danRer11.refGene # 定义斑马鱼注释数据库
+peakAnno <- annotatePeak(peak, tssRegion=c(-3000, 3000),
+                         TxDb=txdb,
+                         annoDb="org.Dr.eg.db")
+
+cat("注释完成！\n")
+
+# 4. 可视化并导出结果
+png("peak_annotation_barplot.png", width=800, height=600)
+plotAnnoBar(peakAnno)
+dev.off()
+
+png("peak_distance_to_TSS.png", width=800, height=600)
+plotDistToTSS(peakAnno, title="Distribution of binding loci relative to TSS")
+dev.off()
+
+output_file <- "all_differential_peaks_annotated.csv"
+write.csv(as.data.frame(peakAnno), file=output_file, row.names = FALSE)
+
+cat("分析完成！结果已保存到您的工作目录。\n")
+
+
+
+
+
+
+# 首先，直接打印一下 peakAnno 对象的摘要信息，亲眼看看结果
+print(peakAnno)
+
+# 现在，之前的画图命令可以成功运行了
+png("peak_annotation_barplot.png", width=1000, height=800)
+plotAnnoBar(peakAnno)
+dev.off()
+
+# 绘制到TSS的距离分布图
+png("peak_distance_to_TSS.png", width=800, height=600)
+plotDistToTSS(peakAnno, title="Distribution of binding loci relative to TSS")
+dev.off()
+
+# 📄 最重要的一步：将您的注释结果保存为CSV表格文件！
+# 这个文件就是您最终需要的，包含了peak和其临近基因的所有信息。
+output_file <- "all_differential_peaks_annotated.csv"
+write.csv(as.data.frame(peakAnno), file=output_file, row.names = FALSE)
+
+cat("🎉 分析彻底完成！\n")
+cat("请在您的工作目录中查找以下文件：\n")
+cat("1. all_differential_peaks_annotated.csv (您要的表格)\n")
+cat("2. peak_annotation_barplot.png (注释分布图)\n")
+cat("3. peak_distance_to_TSS.png (TSS距离图)\n")
